@@ -13,11 +13,12 @@ import tensorflow as tf
 
 import flowers_dataset as fd
 import efficient_net
+import pandas as pd
 
 # TODO: Define reasonable defaults and optionally more parameters
 parser = argparse.ArgumentParser()
 parser.add_argument("--batch_size", default=30, type=int, help="Batch size.")
-parser.add_argument("--epochs", default=8, type=int, help="Number of epochs.")
+parser.add_argument("--epochs", default=7, type=int, help="Number of epochs.")
 parser.add_argument("--seed", default=42, type=int, help="Random seed.")
 parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
 parser.add_argument("--l2", default = 0.001, type=float)
@@ -44,7 +45,7 @@ class Model(tf.keras.Model):
 
     def predict_step(self, data):
         y_pred = self(data, training=False)
-        return y_pred["features"]
+        return (y_pred["features"], y_pred["output"])
 def main(args: argparse.Namespace) -> None:
     # Fix random seeds and threads
     tf.keras.utils.set_random_seed(args.seed)
@@ -76,24 +77,45 @@ def main(args: argparse.Namespace) -> None:
         return image, label    
     train_dataset = (flowers.train
         .shuffle(10000, seed = args.seed)
+    #    .take(1000)
         .map(lambda image, label : train_augment(image, {"output": tf.one_hot(label, len(fd.FLOWERS.LABELS))}))
         .batch(args.batch_size)
         .prefetch(tf.data.AUTOTUNE))
     dev_dataset = (flowers.dev
-        .shuffle(10000, seed = args.seed)
         .map(lambda image, label : (image, {"output": tf.one_hot(label, len(fd.FLOWERS.LABELS))}))
         .batch(args.batch_size)
         .prefetch(tf.data.AUTOTUNE))
-    test_dataset = (flowers.test
-        .batch(1))
+    #dirty, but the dev is shuffled automatically on each pass (otherwise single class data),
+    # so we need to do split in a different dataset that is shuffled only once
+
+
+    test_images = (flowers.all
+        .take(1000)
+        .map(lambda im, label : im)
+        .batch(1)
+        )
+    test_labels = (flowers.all
+        .take(1000)
+        .map(lambda im, label : label)
+        .batch(1)
+        )
+    #test_labels = np.array(labels)
+
     model = Model(args, train= train_dataset)
     model.fit(
         train_dataset, epochs = args.epochs, shuffle=True,
         validation_data = dev_dataset, callbacks = [model.tb_callback]
     )
-    
-    feature_vectors = model.predict(test_dataset)
-    np.savez_compressed("dev_flower_feature_vectors", feature_vectors.numpy())
+    #TODO find why dev is shuffled, possibly use dev_dataset
+    feature_vectors, outputs  = model.predict(test_images)
+    predictions = tf.argmax(outputs, axis = 1)
+    #err = tf.reduce_sum(tf.where(predictions != np.array(list(test_labels.as_numpy_iterator()), dtype = np.int32).ravel(), 1, 0))/outputs.shape[0]
+    #print(err)
+    #print(predictions)
+    #print(feature_vectors.shape)
+    np.save("dev_flower_feature_vectors", feature_vectors)
+    np.save("dev_flower_classes", np.array(list(test_labels.as_numpy_iterator()), dtype = np.int32).ravel())
+
     # Generate test set annotations, but in `args.logdir` to allow parallel execution.
     
 

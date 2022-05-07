@@ -4,6 +4,8 @@ import sys
 from typing import Dict, List, Optional, Sequence, TextIO
 import urllib.request
 
+from sklearn.utils import shuffle
+
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")  # Report only TF errors by default
 
 import numpy as np
@@ -32,16 +34,16 @@ class FLOWERS:
             validation_split=0.2,
             subset="validation",
             seed = 4269,
+            shuffle = True,
             image_size=(FLOWERS.H, FLOWERS.W),
             batch_size = None
         )
-        self.test = tf.keras.utils.image_dataset_from_directory(
+        self.all = tf.keras.utils.image_dataset_from_directory(
             DATASET_DIR,
-            labels = None,
-            validation_split=0.2,
-            subset="validation",
             seed = 4269,
-            image_size = (FLOWERS.H, FLOWERS.W),
+            shuffle = False,
+            image_size=(FLOWERS.H, FLOWERS.W),
             batch_size = None
-        )
+        ).shuffle(5000, reshuffle_each_iteration=False)
+
         
