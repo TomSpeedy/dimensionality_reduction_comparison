@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from audioop import avg
 import datetime
 import os
 import re
@@ -13,29 +14,49 @@ import tensorflow as tf
 
 import flowers_dataset as fd
 import alzheimer_dataset as ad
+import fruits_dataset as od
 import efficient_net
+import efficientnet.tfkeras as efn 
 import pandas as pd
 
 # TODO: Define reasonable defaults and optionally more parameters
 parser = argparse.ArgumentParser()
-parser.add_argument("--batch_size", default=30, type=int, help="Batch size.")
-parser.add_argument("--epochs", default=15, type=int, help="Number of epochs.")
+parser.add_argument("--batch_size", default=50, type=int, help="Batch size.")
+parser.add_argument("--epochs", default=3, type=int, help="Number of epochs.")
 parser.add_argument("--seed", default=42, type=int, help="Random seed.")
 parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
 parser.add_argument("--l2", default = 0.001, type=float)
 parser.add_argument("--dropout", default =  0.3, type = float)
 parser.add_argument("--label_smoothing", default=0.2, type=float, help="Label smoothing.")
-DATASET = ad.ALZHEIMER
+DATASET = od.FRUITS
+IDF = "B0"
+DATA = "fruit"
 #TODO add confusion matrix
 class Model(tf.keras.Model):
     def __init__(self, args: argparse.Namespace, train):
         
-        efficientnet_b0 = efficient_net.pretrained_efficientnet_b0(include_top=False)
+        # efficientnet_b0 = efficient_net.pretrained_efficientnet_b0(include_top=False)
+        # eff_output = efficientnet_b0.output[0]
+        # efficientnet_b0 = tf.keras.applications.EfficientNetV2M(
+        #     include_top=False,
+        #     weights="imagenet",
+        #     input_tensor=None,
+        #     input_shape=None,
+        #     pooling="avg",
+        #     classes=1000,
+        #     classifier_activation="softmax"
+        # )
+        efficientnet_b0 = efn.EfficientNetB0(
+            include_top=False,
+            weights='noisy-student',
+            pooling="avg")
+        eff_output =efficientnet_b0.output
+        
         input = efficientnet_b0.input
-        output = tf.keras.layers.Dropout(args.dropout)(efficientnet_b0.output[0])
+        output = tf.keras.layers.Dropout(args.dropout)(eff_output)
         output = tf.keras.layers.Dense(len(DATASET.LABELS), activation = tf.nn.softmax, kernel_regularizer = tf.keras.regularizers.l2(args.l2))(output)
         
-        super().__init__(inputs = input, outputs = {"output" : output, "features": efficientnet_b0.output[0]})
+        super().__init__(inputs = input, outputs = {"output" : output, "features": eff_output})
         self.efficientnet_b0 = efficientnet_b0
         #tf.keras.optimizers.schedules.CosineDecay(0.0001, args.epochs*train.cardinality().numpy()/args.batch_size)
         self.compile(
@@ -115,8 +136,8 @@ def main(args: argparse.Namespace) -> None:
     #print(err)
     #print(predictions)
     #print(feature_vectors.shape)
-    np.save("dev_alzheimer_feature_vectors", feature_vectors)
-    np.save("dev_alzheimer_classes", np.array(list(test_labels.as_numpy_iterator()), dtype = np.int32).ravel())
+    np.save("dev_"+DATA+"_feature_vectors"+IDF, feature_vectors)
+    np.save("dev_"+DATA+"_classes", np.array(list(test_labels.as_numpy_iterator()), dtype = np.int32).ravel())
 
     # Generate test set annotations, but in `args.logdir` to allow parallel execution.
     
