@@ -1,6 +1,9 @@
 __pycache__
 *.jpg
+*.csv
 flowers
 logs
 alzheimer
 body_parts
+fruits-360_dataset
+fruits-360-original-size
