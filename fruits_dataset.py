@@ -41,4 +41,5 @@ class FRUITS:
             shuffle = False,
             image_size=(FRUITS.H, FRUITS.W),
             batch_size = None
-        ).shuffle(5000, reshuffle_each_iteration=False)
+        ).shuffle(30000, reshuffle_each_iteration=False)
+        

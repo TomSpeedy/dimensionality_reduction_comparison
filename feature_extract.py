@@ -21,16 +21,17 @@ import pandas as pd
 
 # TODO: Define reasonable defaults and optionally more parameters
 parser = argparse.ArgumentParser()
-parser.add_argument("--batch_size", default=50, type=int, help="Batch size.")
-parser.add_argument("--epochs", default=3, type=int, help="Number of epochs.")
+parser.add_argument("--batch_size", default=30, type=int, help="Batch size.")
+parser.add_argument("--epochs", default=7, type=int, help="Number of epochs.")
 parser.add_argument("--seed", default=42, type=int, help="Random seed.")
 parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
 parser.add_argument("--l2", default = 0.001, type=float)
 parser.add_argument("--dropout", default =  0.3, type = float)
 parser.add_argument("--label_smoothing", default=0.2, type=float, help="Label smoothing.")
-DATASET = od.FRUITS
-IDF = "B0"
-DATA = "fruit"
+DATASET = ad.ALZHEIMER
+IDF = "B0-ut"
+DATA = "alzheimer"
+SAVE_PREDICTIONS=True
 #TODO add confusion matrix
 class Model(tf.keras.Model):
     def __init__(self, args: argparse.Namespace, train):
@@ -113,12 +114,12 @@ def main(args: argparse.Namespace) -> None:
 
 
     test_images = (flowers.all
-        .take(1000)
+        .take(10000)
         .map(lambda im, label : im)
         .batch(1)
         )
     test_labels = (flowers.all
-        .take(1000)
+        .take(10000)
         .map(lambda im, label : label)
         .batch(1)
         )
@@ -137,8 +138,9 @@ def main(args: argparse.Namespace) -> None:
     #print(predictions)
     #print(feature_vectors.shape)
     np.save("dev_"+DATA+"_feature_vectors"+IDF, feature_vectors)
-    np.save("dev_"+DATA+"_classes", np.array(list(test_labels.as_numpy_iterator()), dtype = np.int32).ravel())
-
+    np.save("dev_"+DATA+"_classes"+IDF, np.array(list(test_labels.as_numpy_iterator()), dtype = np.int32).ravel())
+    if SAVE_PREDICTIONS:
+        np.save("dev_"+DATA+"_predictions"+IDF,outputs)
     # Generate test set annotations, but in `args.logdir` to allow parallel execution.
     
 
